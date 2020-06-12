@@ -1,112 +1,119 @@
 ---
-title: "Automatic or Manual?"
-author: "Binali Perera"
-date: "05 MAY 2019"
-output:
-  pdf_document: default
-  html_document:
-    keep_md: yes
+title: "Motor Trend MPG Data Analysis"
+author: "Tanvir Siddike Moin"
+date: "June 12, 2020"
+output: html_document
 ---
+*Created with knitr*
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+#### Executive Summary
+This report analyzed the relationship between transmission type (manual or 
+automatic) and miles per gallon (MPG). The report set out to determine which 
+transmission type produces a higher MPG. The `mtcars` dataset was used for this
+analysis. A t-test between automatic and manual transmission vehicles shows that
+manual transmission vehicles have a 7.245 greater MPG than automatic 
+transmission vehicles. After fitting multiple linear regressions, analysis 
+showed that the manual transmission contributed less significantly to MPG, only
+an improvement of 1.81 MPG.  Other variables, weight, horsepower, and number of 
+cylinders contributed more significantly to the overall MPG of vehicles.
 
-## Executive Summary
-In this study we look at the cars dataset comprising of different aspects of automobile design for 32 automobiles, to explore the relationship between these aspects with the miles per gallon. We specifically focus on the following two questions being is an automatic or manual transmission better for MPG and how to quantify this MPG difference between automatic and manual transmissions.
-
-To achieve our objectives we take the following steps:
-
-- Data preprocessing
-- Exploratory Analysis
-- Model Selection
-- Model Examination
-- Conclusion
-
-## Data Preprocessing
-
-First, we change the 'am' variable of the dataset which denotes if a car is automatic or manual transmission to a factor variable. We also other variables factor just as to make them discrete instead of continuous.
-
-```{r}
-data("mtcars")
-data <- mtcars
-data$am <- as.factor(data$am)
-levels(data$am) <- c("A", "M") 
-data$cyl <- as.factor(data$cyl)
-data$gear <- as.factor(data$gear)
-data$vs <- as.factor(data$vs)
-levels(data$vs) <- c("V", "S")
-```
-
-## Exploratory Analysis
-
-First let's take a look at the dataset itself to know about the fields it contains.
-
-```{r}
-str(data)
-head(data, n = 5)
-```
-
-To see the relationship between the mpg and am more clearly lets create a boxplot.
-
-```{r}
+#### Load Data
+Load the dataset and convert categorical variables to factors.
+```{r results='hide', message=FALSE}
 library(ggplot2)
-g <- ggplot(data, aes(am, mpg))
-g <- g + geom_boxplot(aes(fill = am))
-print(g)
+data(mtcars)
+head(mtcars, n=3)
+dim(mtcars)
+mtcars$cyl <- as.factor(mtcars$cyl)
+mtcars$vs <- as.factor(mtcars$vs)
+mtcars$am <- factor(mtcars$am)
+mtcars$gear <- factor(mtcars$gear)
+mtcars$carb <- factor(mtcars$carb)
+attach(mtcars)
 ```
 
-The plot clearly shows that cars with manual transmission do have higher mpg as compared to the one's with automatic transmission. However there might be other factors which we might be overlooking. Hence before creating a model we should look at other parameters which have high correlation with the variable. Lets look at all the variables whose correlation with mpg is higher than the am variable.
+#### Exploratory Analysis
+**See Appendix Figure I** Exploratory Box graph that compares Automatic and Manual 
+transmission MPG. The graph leads us to believe that there is a significant 
+increase in MPG when for vehicles with a manual transmission vs automatic.
 
-
+##### Statistical Inference
+T-Test transmission type and MPG
 ```{r}
-correlation <- cor(mtcars$mpg, mtcars)
-correlation <- correlation[,order(-abs(correlation[1, ]))]
-correlation
-variables <- names(correlation)[1: which(names(correlation) == "am")]
-variables
-    
+testResults <- t.test(mpg ~ am)
+testResults$p.value
 ```
-
-## Model Selection
-
-Now that we know mpg variable has stronger correlations with other variables too apart from just am, we can't base our model solely on this one variable as it will not be the most accurate one. Let's start this process by fitting mpg with just am.
-
+The T-Test rejects the null hypothesis that the difference between transmission
+types is 0.  
 ```{r}
-first <- lm(mpg ~ am, data)
-summary(first)
+testResults$estimate
+```
+The difference estimate between the 2 transmissions is 7.24494 MPG in favor of 
+manual.
+
+##### Regression Analysis
+Fit the full model of the data
+```{r results='hide'}
+fullModelFit <- lm(mpg ~ ., data = mtcars)
+summary(fullModelFit)  # results hidden
+summary(fullModelFit)$coeff  # results hidden
+```
+Since none of the coefficients have a p-value less than 0.05 we cannot conclude
+which variables are more statistically significant. 
+
+Backward selection to determine which variables are most statistically 
+significant
+```{r results='hide'}
+stepFit <- step(fullModelFit)
+summary(stepFit) # results hidden
+summary(stepFit)$coeff # results hidden
 ```
 
-In this case p-value is quite low but the R-squared value is the real problem. Hence, let's now go to the other extreme end and fit all variables with mpg.
+The new model has 4 variables (cylinders, horsepower, weight, transmission). The
+R-squared value of 0.8659 confirms that this model explains about 87% of the 
+variance in MPG. The p-values also are statistically significantly because they
+have a p-value less than 0.05. The coefficients conclude that increasing the 
+number of cylinders from 4 to 6 with decrease the MPG by 3.03.  Further 
+increasing the cylinders to 8 with decrease the MPG by 2.16.  Increasing the 
+horsepower is decreases MPG 3.21 for every 100 horsepower.  Weight decreases the
+MPG by 2.5 for each 1000 lbs increase. A Manual transmission improves the MPG by
+1.81.
 
+#### Residuals & Diagnostics
+Residual Plot
+**See Appendix Figure II**
+
+The plots conclude:
+
+1. The randomness of the Residuals vs. Fitted plot supports the assumption of
+independence
+2. The points of the Normal Q-Q plot following closely to the line conclude that
+the distribution of residuals is normal
+3. The Scale-Location plot random distribution confirms the constant variance 
+assumption
+4. Since all points are within the 0.05 lines, the Residuals vs. Leverage 
+concludes that there are no outliers
 ```{r}
-last <- lm(mpg ~ ., data)
-summary(last)
+sum((abs(dfbetas(stepFit)))>1)
 ```
 
-Here R-squared values have definitely improved but the p-value becomes the problem now which is caused most probably due to overfitting. So, lets use 'step' method to iterate over the variables and obtain the best model.
+#### Conclusion
+There is a difference in MPG based on transmission type. A manual transmission
+will have a slight MPG boost. However, it seems that weight, horsepower, & 
+number of cylinders are more statistically significant when determining MPG.
 
-```{r}
-best <- step(last, direction = "both", trace = FALSE)
-summary(best)
+### Appendix Figures
+
+#### I
+```{r echo=FALSE}
+  boxplot(mpg ~ am, 
+          xlab="Transmission Type (0 = Automatic, 1 = Manual)", 
+          ylab="MPG",
+          main="MPG by Transmission Type")
 ```
 
-Here the R-squared value is pretty good and also p-values are quite significant. Hence undoubtedly this is the best fit for us.
-
-## Model Examination
-
-The best model we obtained i.e., 'best' depicts the dependance of mpg over wt and qsec other than am. Let's plot and study some residual plots to understand more about the 'best' fit. 
-
-```{r}
-layout(matrix(c(1,2,3,4),2,2))
-plot(best)
+#### II
+```{r echo=FALSE}
+par(mfrow = c(2, 2))
+plot(stepFit)
 ```
-
-## Conclusion
-
-The first question whether automatic or manual is better for mpg can be answered using all the models created as holding all the other parameters constant, manual transmission increases the mpg.
-
-However the second question is a little difficult to answer.
-Based on 'best' fit model, we conclude that cars with manual transmission have 2.93 more mpg than that of automatic with p < 0.05 and R-squared 0.85.
-
-Residuals vs Fitted plot however shows something is missing from the model which might be a problem due to a small sample size which is 32 observations. Even though the conclusion that manual has better performance with respect to mpg, whether the model will git all future observations will be doubtful.
